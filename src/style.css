@@ -1,0 +1,57 @@
+body {
+    margin: 0;
+    font-family: Arial, sans-serif;
+    background: #f4f4f4;
+}
+
+.app {
+    display: flex;
+    height: 100vh;
+}
+
+.menu {
+    width: 220px;
+    background: #1e3c72;
+    color: white;
+    padding: 20px;
+}
+
+.menu h2 {
+    text-align: center;
+}
+
+.menu button {
+    width: 100%;
+    margin: 10px 0;
+    padding: 10px;
+    border: none;
+    background: #00c6ff;
+    font-weight: bold;
+    cursor: pointer;
+    border-radius: 5px;
+}
+
+.menu button:hover {
+    background: #00a2d4;
+}
+
+.content {
+    flex: 1;
+    padding: 40px;
+    background: white;
+}
+
+.section {
+    display: none;
+}
+
+input, select {
+    display: block;
+    width: 300px;
+    padding: 8px;
+    margin: 10px 0;
+}
+
+button {
+    padding: 10px 15px;
+}
