@@ -192,6 +192,9 @@
                 <button type="submit" class="btn btn-info">Generate Report</button>
             </form>
         </div>
+        <div class="dashboard-links">
+            <a href="generate_report.jsp" target="_blank" class="report-btn">Generate Reservation PDF</a>
+        </div>
     </div>
 
     <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 25px;">
