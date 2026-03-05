@@ -35,17 +35,17 @@ public class StaffServlet extends HttpServlet {
     }
 
     private void addStaff(HttpServletRequest request, HttpServletResponse response) throws IOException {
-        // 1. Get all parameters from the JSP form
+        // 1. Capture all the new fields from your JSP
         String userId = request.getParameter("user_id");
         String fullName = request.getParameter("full_name");
         String username = request.getParameter("username");
         String password = request.getParameter("password");
         String email = request.getParameter("email");
         String mobile = request.getParameter("mobile");
-        String role = request.getParameter("role"); // Usually "staff"
+        String role = "staff";
 
         try (Connection con = util.DBConnection.getConnection()) {
-            // 2. Prepare the SQL statement with the new columns
+            // 2. The SQL must match the table exactly
             String sql = "INSERT INTO users (user_id, username, password, role, full_name, email, mobile) VALUES (?, ?, ?, ?, ?, ?, ?)";
             PreparedStatement pst = con.prepareStatement(sql);
 
@@ -57,12 +57,11 @@ public class StaffServlet extends HttpServlet {
             pst.setString(6, email);
             pst.setString(7, mobile);
 
-            // 3. Execute and redirect
             pst.executeUpdate();
-            response.sendRedirect("admin_dashboard.jsp?success=staff_added");
+            response.sendRedirect("admin_dashboard.jsp?success=Staff Registered Successfully");
 
-        } catch (SQLException | NumberFormatException e) {
-            e.printStackTrace();
+        } catch (Exception e) {
+            e.printStackTrace(); // This sends the REAL error to the IntelliJ Console
             response.sendRedirect("admin_dashboard.jsp?error=add_failed");
         }
     }

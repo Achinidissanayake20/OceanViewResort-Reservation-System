@@ -18,9 +18,8 @@ public class ReservationServlet extends HttpServlet {
         response.setContentType("text/html");
         PrintWriter out = response.getWriter();
 
-        // 1. SEARCH & VIEW ALL LOGIC
         if ("viewAll".equals(action) || "search".equals(action)) {
-            String searchQuery = request.getParameter("query"); // Get search input if it exists
+            String searchQuery = request.getParameter("query");
 
             out.println("<html><head><title>Reservation Management</title><link rel='stylesheet' href='css/style.css'></head><body>");
             out.println("<div style='padding:20px; font-family:Arial;'>");
@@ -29,41 +28,36 @@ public class ReservationServlet extends HttpServlet {
             out.println("<table border='1' cellpadding='10' style='border-collapse: collapse; width:100%;'>");
             out.println("<tr style='background-color:#f2f2f2;'><th>Res No</th><th>Guest Name</th><th>Room Type</th><th>Check In</th><th>Check Out</th></tr>");
 
+            // Standardized Connection Handling
             try (Connection con = util.DBConnection.getConnection()) {
                 PreparedStatement pst;
 
                 if ("search".equals(action) && searchQuery != null && !searchQuery.trim().isEmpty()) {
-                    // Search query: looking for matches in name OR reservation number
                     String sql = "SELECT * FROM reservations WHERE guest_name LIKE ? OR reservation_no LIKE ?";
                     pst = con.prepareStatement(sql);
                     pst.setString(1, "%" + searchQuery + "%");
                     pst.setString(2, "%" + searchQuery + "%");
                 } else {
-                    // Default: show everything
                     pst = con.prepareStatement("SELECT * FROM reservations");
                 }
 
-                ResultSet rs = pst.executeQuery();
-                boolean dataFound = false;
-
-                while (rs.next()) {
-                    dataFound = true;
-                    out.println("<tr>");
-                    out.println("<td>" + rs.getString("reservation_no") + "</td>");
-                    out.println("<td>" + rs.getString("guest_name") + "</td>");
-                    out.println("<td>" + rs.getString("room_type") + "</td>");
-                    out.println("<td>" + rs.getDate("check_in") + "</td>");
-                    out.println("<td>" + rs.getDate("check_out") + "</td>");
-                    out.println("</tr>");
+                try (ResultSet rs = pst.executeQuery()) {
+                    boolean dataFound = false;
+                    while (rs.next()) {
+                        dataFound = true;
+                        out.println("<tr>");
+                        out.println("<td>" + rs.getString("reservation_no") + "</td>");
+                        out.println("<td>" + rs.getString("guest_name") + "</td>");
+                        out.println("<td>" + rs.getString("room_type") + "</td>");
+                        out.println("<td>" + rs.getDate("check_in") + "</td>");
+                        out.println("<td>" + rs.getDate("check_out") + "</td>");
+                        out.println("</tr>");
+                    }
+                    if (!dataFound) {
+                        out.println("<tr><td colspan='5' style='text-align:center;'>No reservations found.</td></tr>");
+                    }
                 }
-
-                if (!dataFound) {
-                    out.println("<tr><td colspan='5' style='text-align:center;'>No reservations found.</td></tr>");
-                }
-
-                out.println("</table>");
-                out.println("<br><a href='staff_dashboard.jsp'>Back to Dashboard</a>");
-                out.println("</div></body></html>");
+                out.println("</table><br><a href='staff_dashboard.jsp'>Back to Dashboard</a></div></body></html>");
             } catch (SQLException e) {
                 e.printStackTrace();
                 out.println("<p style='color:red;'>Database Error: " + e.getMessage() + "</p>");
@@ -75,7 +69,6 @@ public class ReservationServlet extends HttpServlet {
     @Override
     protected void doPost(HttpServletRequest request, HttpServletResponse response) throws ServletException, IOException {
         String action = request.getParameter("action");
-
         if (action == null) {
             response.sendRedirect("staff_dashboard.jsp");
             return;
@@ -89,7 +82,6 @@ public class ReservationServlet extends HttpServlet {
         }
     }
 
-    // 1. ADD RESERVATION
     private void addReservation(HttpServletRequest request, HttpServletResponse response) throws IOException {
         try (Connection con = util.DBConnection.getConnection()) {
             String sql = "INSERT INTO reservations(reservation_no, guest_name, address, contact_number, room_type, check_in, check_out) VALUES(?,?,?,?,?,?,?)";
@@ -109,7 +101,6 @@ public class ReservationServlet extends HttpServlet {
         }
     }
 
-    // 2. EDIT RESERVATION
     private void editReservation(HttpServletRequest request, HttpServletResponse response) throws IOException {
         String resNo = request.getParameter("reservation_no");
         try (Connection con = util.DBConnection.getConnection()) {
@@ -130,7 +121,6 @@ public class ReservationServlet extends HttpServlet {
         }
     }
 
-    // 3. DELETE RESERVATION
     private void deleteReservation(HttpServletRequest request, HttpServletResponse response) throws IOException {
         String resNo = request.getParameter("reservation_no");
         try (Connection con = util.DBConnection.getConnection()) {
@@ -145,7 +135,6 @@ public class ReservationServlet extends HttpServlet {
         }
     }
 
-    // 4. CALCULATE BILL
     private void calculateBill(HttpServletRequest request, HttpServletResponse response) throws IOException {
         String resNo = request.getParameter("reservation_no");
         response.setContentType("text/html");
@@ -155,41 +144,35 @@ public class ReservationServlet extends HttpServlet {
             String sql = "SELECT room_type, check_in, check_out FROM reservations WHERE reservation_no=?";
             PreparedStatement pst = con.prepareStatement(sql);
             pst.setString(1, resNo);
-            ResultSet rs = pst.executeQuery();
+            try (ResultSet rs = pst.executeQuery()) {
+                if (rs.next()) {
+                    String roomType = rs.getString("room_type");
+                    LocalDate checkIn = rs.getDate("check_in").toLocalDate();
+                    LocalDate checkOut = rs.getDate("check_out").toLocalDate();
 
-            if (rs.next()) {
-                String roomType = rs.getString("room_type");
-                LocalDate checkIn = rs.getDate("check_in").toLocalDate();
-                LocalDate checkOut = rs.getDate("check_out").toLocalDate();
+                    long nights = ChronoUnit.DAYS.between(checkIn, checkOut);
+                    if (nights <= 0) nights = 1;
 
-                long nights = ChronoUnit.DAYS.between(checkIn, checkOut);
-                if (nights <= 0) nights = 1;
+                    double rate = 100.0; // Default fallback
+                    String rateSql = "SELECT rate_per_night FROM room_rates WHERE room_type=?";
+                    PreparedStatement ratePst = con.prepareStatement(rateSql);
+                    ratePst.setString(1, roomType);
+                    try (ResultSet rateRs = ratePst.executeQuery()) {
+                        if (rateRs.next()) rate = rateRs.getDouble("rate_per_night");
+                    }
 
-                double rate = 0;
-                String rateSql = "SELECT rate_per_night FROM room_rates WHERE room_type=?";
-                PreparedStatement ratePst = con.prepareStatement(rateSql);
-                ratePst.setString(1, roomType);
-                ResultSet rateRs = ratePst.executeQuery();
-
-                if (rateRs.next()) {
-                    rate = rateRs.getDouble("rate_per_night");
+                    double total = rate * nights;
+                    out.println("<html><body style='font-family:Arial; padding:20px; border: 2px solid #0056b3;'>");
+                    out.println("<h1>Ocean View Resort - Invoice</h1>");
+                    out.println("<p>Guest Reservation: <strong>" + resNo + "</strong></p>");
+                    out.println("<p>Room Category: " + roomType + " (@ $" + rate + "/night)</p>");
+                    out.println("<p>Stay Duration: " + nights + " Night(s)</p>");
+                    out.println("<hr><h2>Total Payable: $" + String.format("%.2f", total) + "</h2>");
+                    out.println("<br><button onclick='window.print()'>Print Receipt</button>");
+                    out.println("<br><br><a href='staff_dashboard.jsp'>Back to Menu</a></body></html>");
                 } else {
-                    rate = 100.0;
+                    out.println("Reservation not found.");
                 }
-
-                double total = rate * nights;
-
-                out.println("<html><body style='font-family:Arial; padding:20px; border: 2px solid #0056b3;'>");
-                out.println("<h1>Ocean View Resort - Invoice</h1>");
-                out.println("<p>Guest Reservation: <strong>" + resNo + "</strong></p>");
-                out.println("<p>Room Category: " + roomType + " (@ $" + rate + "/night)</p>");
-                out.println("<p>Stay Duration: " + nights + " Night(s)</p>");
-                out.println("<hr>");
-                out.println("<h2>Total Payable: $" + String.format("%.2f", total) + "</h2>");
-                out.println("<br><button onclick='window.print()'>Print Receipt</button>");
-                out.println("<br><br><a href='staff_dashboard.jsp'>Back to Menu</a></body></html>");
-            } else {
-                out.println("Reservation not found.");
             }
         } catch (SQLException e) {
             e.printStackTrace();
