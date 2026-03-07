@@ -187,10 +187,6 @@
         <h2>Reservation Reports</h2>
         <div style="display: flex; align-items: center; justify-content: space-between;">
             <p style="color: var(--secondary); margin: 0; font-size: 0.9rem;">Generate a real-time list of all guest bookings.</p>
-            <form action="reservation" method="get">
-                <input type="hidden" name="action" value="viewAll">
-                <button type="submit" class="btn btn-info">Generate Report</button>
-            </form>
         </div>
         <div class="dashboard-links">
             <a href="generate_report.jsp" target="_blank" class="report-btn">Generate Reservation PDF</a>
