@@ -33,9 +33,9 @@ public class StaffServlet extends HttpServlet {
         }
     }
 
-    // 1. ADD STAFF
+    // 1. ADD STAFF (Updated with Duplicate Check)
     private void addStaff(HttpServletRequest request, HttpServletResponse response) throws IOException {
-        String userId = request.getParameter("user_id");
+        String userIdStr = request.getParameter("user_id");
         String fullName = request.getParameter("full_name");
         String username = request.getParameter("username");
         String password = request.getParameter("password");
@@ -44,9 +44,21 @@ public class StaffServlet extends HttpServlet {
         String role = "staff";
 
         try (Connection con = util.DBConnection.getConnection()) {
+            // Check if ID already exists to prevent crash
+            String checkSql = "SELECT user_id FROM users WHERE user_id = ?";
+            PreparedStatement checkPst = con.prepareStatement(checkSql);
+            checkPst.setInt(1, Integer.parseInt(userIdStr));
+            ResultSet rs = checkPst.executeQuery();
+
+            if (rs.next()) {
+                response.sendRedirect("admin_dashboard.jsp?error=Duplicate+ID+Detected");
+                return;
+            }
+
+            // Perform Insertion
             String sql = "INSERT INTO users (user_id, username, password, role, full_name, email, mobile) VALUES (?, ?, ?, ?, ?, ?, ?)";
             PreparedStatement pst = con.prepareStatement(sql);
-            pst.setInt(1, Integer.parseInt(userId));
+            pst.setInt(1, Integer.parseInt(userIdStr));
             pst.setString(2, username);
             pst.setString(3, password);
             pst.setString(4, role);
@@ -58,18 +70,14 @@ public class StaffServlet extends HttpServlet {
             response.sendRedirect("admin_dashboard.jsp?success=Staff+Registered+Successfully");
         } catch (Exception e) {
             e.printStackTrace();
-            response.sendRedirect("admin_dashboard.jsp?error=add_failed");
+            // Send detailed error message to URL for easier debugging
+            response.sendRedirect("admin_dashboard.jsp?error=add_failed_check_console");
         }
     }
 
     // 2. EDIT STAFF
     private void editStaff(HttpServletRequest request, HttpServletResponse response) throws IOException {
         String idStr = request.getParameter("user_id");
-        if (idStr == null || idStr.isEmpty()) {
-            response.sendRedirect("admin_dashboard.jsp?error=missingid");
-            return;
-        }
-
         String username = request.getParameter("username");
         String password = request.getParameter("password");
 
@@ -79,8 +87,13 @@ public class StaffServlet extends HttpServlet {
             pst.setString(1, username);
             pst.setString(2, password);
             pst.setInt(3, Integer.parseInt(idStr));
-            pst.executeUpdate();
-            response.sendRedirect("admin_dashboard.jsp?success=updated");
+
+            int rows = pst.executeUpdate();
+            if (rows > 0) {
+                response.sendRedirect("admin_dashboard.jsp?success=updated");
+            } else {
+                response.sendRedirect("admin_dashboard.jsp?error=user_not_found");
+            }
         } catch (Exception e) {
             e.printStackTrace();
             response.sendRedirect("admin_dashboard.jsp?error=updatefail");
@@ -90,15 +103,10 @@ public class StaffServlet extends HttpServlet {
     // 3. DELETE STAFF
     private void deleteStaff(HttpServletRequest request, HttpServletResponse response) throws IOException {
         String idStr = request.getParameter("user_id");
-        if (idStr == null || idStr.isEmpty()) {
-            response.sendRedirect("admin_dashboard.jsp?error=missingid");
-            return;
-        }
 
         try (Connection con = util.DBConnection.getConnection()) {
             String sql = "DELETE FROM users WHERE user_id=?";
             PreparedStatement pst = con.prepareStatement(sql);
-            // Fixed: Only one parameter, so index is 1
             pst.setInt(1, Integer.parseInt(idStr));
 
             int rows = pst.executeUpdate();
